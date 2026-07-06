@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYK Action Planner</title>
+<style>
+:root{--bg:#0f1115;--panel:#181b22;--panel2:#1f232d;--border:#2a2f3b;--text:#e8eaf0;--muted:#9aa1b2;--accent:#f5b942;--accent2:#4f8ef7;--green:#3ecf8e;--red:#f26d6d;--radius:12px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden}
+button{cursor:pointer;font-family:inherit}
+/* SIDEBAR */
+#sidebar{width:270px;min-width:270px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column}
+#sidebar .logo{padding:18px 16px;border-bottom:1px solid var(--border)}
+#sidebar .logo h1{font-size:17px;color:var(--accent)}
+#sidebar .logo p{font-size:11px;color:var(--muted);margin-top:2px}
+#clientList{flex:1;overflow-y:auto;padding:10px}
+.clientCard{padding:11px 12px;border-radius:10px;margin-bottom:6px;cursor:pointer;border:1px solid transparent}
+.clientCard:hover{background:var(--panel2)}
+.clientCard.active{background:var(--panel2);border-color:var(--accent)}
+.clientCard .cname{font-weight:600;font-size:14px}
+.clientCard .cniche{font-size:11px;color:var(--muted);margin-top:2px}
+.clientCard .cbar{height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+.clientCard .cbar div{height:100%;background:var(--green)}
+#sidebar .actions{padding:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.btn{padding:9px 14px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font-size:13px}
+.btn.primary{background:var(--accent);color:#1a1a1a;border:none;font-weight:600}
+.btn.small{padding:5px 10px;font-size:12px}
+.btn.danger{color:var(--red)}
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+#topbar h2{font-size:18px}
+#topbar .meta{font-size:12px;color:var(--muted)}
+#topbar .spacer{flex:1}
+#phaseTabs{display:flex;gap:4px;padding:10px 24px 0;border-bottom:1px solid var(--border);overflow-x:auto;background:var(--bg)}
+.ptab{padding:9px 13px;border-radius:10px 10px 0 0;font-size:12.5px;border:1px solid transparent;border-bottom:none;background:none;color:var(--muted);white-space:nowrap}
+.ptab.active{background:var(--panel);color:var(--text);border-color:var(--border)}
+.ptab .pct{font-size:10px;color:var(--green);margin-left:4px}
+#content{flex:1;overflow-y:auto;padding:22px 26px 60px}
+/* STEPS */
+.step{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+.step-head{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer}
+.step-head:hover{background:var(--panel2)}
+.step-check{width:22px;height:22px;min-width:22px;border-radius:6px;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;font-size:14px;color:#1a1a1a}
+.step.done .step-check{background:var(--green);border-color:var(--green)}
+.step-title{font-weight:600;font-size:14.5px;flex:1}
+.step.done .step-title{color:var(--muted);text-decoration:line-through}
+.step-arrow{color:var(--muted);font-size:12px}
+.step-body{display:none;padding:0 16px 16px;border-top:1px solid var(--border)}
+.step.open .step-body{display:block}
+.step-desc{font-size:13.5px;line-height:1.65;color:#c7ccda;padding:12px 0;white-space:pre-wrap}
+.block{margin-top:10px;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.6}
+.block h4{font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+.block.template{background:#141c2b;border:1px solid #24344f}
+.block.template h4{color:var(--accent2)}
+.block.example{background:#1d1a12;border:1px solid #4a3c1c}
+.block.example h4{color:var(--accent)}
+.block pre{white-space:pre-wrap;font-family:inherit;font-size:13px}
+.copybtn{float:right;font-size:11px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:2px 8px}
+.copybtn:hover{color:var(--text)}
+.step-notes{width:100%;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:13px;font-family:inherit;min-height:60px;resize:vertical}
+/* METRICS */
+table{width:100%;border-collapse:collapse;font-size:13px;background:var(--panel);border-radius:var(--radius);overflow:hidden}
+th,td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:center}
+th{background:var(--panel2);font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+td input{width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px;text-align:center;font-size:13px}
+.rate{color:var(--accent);font-weight:600}
+.kpi-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.kpi .v{font-size:24px;font-weight:700;color:var(--accent)}
+.kpi .l{font-size:11.5px;color:var(--muted);margin-top:3px}
+/* MODAL */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:50}
+#modal.show{display:flex}
+#modal .box{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;width:430px;max-width:92vw}
+#modal h3{margin-bottom:16px;font-size:16px}
+#modal label{font-size:12px;color:var(--muted);display:block;margin:12px 0 5px}
+#modal input,#modal select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px;font-size:13.5px;font-family:inherit}
+#modal .row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.empty{color:var(--muted);text-align:center;margin-top:80px;line-height:1.8;font-size:14px}
+.phase-intro{background:var(--panel2);border-left:3px solid var(--accent);border-radius:8px;padding:13px 16px;font-size:13px;line-height:1.6;color:#c7ccda;margin-bottom:16px;white-space:pre-wrap}
+.tag{display:inline-block;font-size:10.5px;background:var(--panel2);border:1px solid var(--border);border-radius:20px;padding:2px 9px;color:var(--muted);margin-left:6px}
+@media(max-width:760px){#sidebar{width:200px;min-width:200px}}
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <div class="logo"><h1>⚡ SYK Action Planner</h1><p>Método Sell Your Knowledge · plan por cliente</p></div>
+  <div id="clientList"></div>
+  <div class="actions">
+    <button class="btn" onclick="showCasos()">📚 Casos reales (mentorías)</button>
+    <button class="btn primary" onclick="openNewClient()">+ Nuevo cliente</button>
+    <button class="btn" onclick="exportData()">⬇ Exportar respaldo</button>
+    <button class="btn" onclick="document.getElementById('importFile').click()">⬆ Importar respaldo</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+<div id="main">
+  <div id="topbar"></div>
+  <div id="phaseTabs"></div>
+  <div id="content"><div class="empty">👋 Creá tu primer cliente con <b>+ Nuevo cliente</b><br>y empezá a trabajar el plan de acción paso a paso.</div></div>
+</div>
+
+<div id="modal">
+  <div class="box">
+    <h3 id="modalTitle">Nuevo cliente</h3>
+    <label>Nombre del cliente / proyecto</label>
+    <input id="fName" placeholder="Ej: Juan Pérez">
+    <label>Nicho</label>
+    <select id="fNiche"></select>
+    <label>¿Qué vende? (servicio/expertise)</label>
+    <input id="fService" placeholder="Ej: coaching fitness para hombres +35">
+    <label>Facturación mensual actual (USD)</label>
+    <input id="fRevenue" type="number" placeholder="0">
+    <div class="row">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn primary" onclick="saveClient()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================== DATOS: NICHOS ================== */
+const NICHES = {
+ fitness:{label:"Coaching Fitness"},
+ nutricion:{label:"Nutrición / Salud"},
+ inmobiliario:{label:"Inmobiliario"},
+ agencia:{label:"Agencia de Marketing"},
+ negocios:{label:"Coaching de Negocios"},
+ estetica:{label:"Estética / Belleza"},
+ otro:{label:"Otro (usar plantillas)"}
+};
+
+/* Ejemplos por nicho, por paso (clave = id de paso) */
+const EX = {
+ mensaje:{
+  fitness:"Ayudo a hombres de +35 con poco tiempo a perder 8-10 kg de grasa en 16 semanas mediante el Método Cuerpo Ejecutivo, sin dietas extremas ni 2 horas de gimnasio.",
+  nutricion:"Ayudo a mujeres con SOP a regular su ciclo y bajar la inflamación en 90 días mediante el Protocolo Hormonal Integral, sin dietas restrictivas.",
+  inmobiliario:"Ayudo a agentes inmobiliarios a captar 3-5 propiedades exclusivas por mes mediante el Sistema de Captación Digital, sin llamadas en frío interminables.",
+  agencia:"Ayudo a clínicas dentales a sumar 30+ pacientes nuevos por mes mediante el Embudo Paciente Directo, sin depender de recomendaciones.",
+  negocios:"Ayudo a coaches y consultores a escalar a $10K/mes en 6 meses mediante un sistema integral de adquisición, sin pagar publicidad al inicio.",
+  estetica:"Ayudo a dueñas de centros de estética a llenar su agenda con clientas de alto ticket en 60 días mediante el Sistema Agenda Llena, sin bajar precios.",
+  otro:"Ayudo a [QUIÉN específico] a [RESULTADO concreto y medible] mediante [TU MECANISMO con nombre] sin [DOLOR u objeción principal]."
+ },
+ oferta:{
+  fitness:"Programa 16 semanas · $1.200 USD: plan de entrenamiento + nutrición flexible + llamada semanal grupal + chat 1-1. Garantía: si seguís el plan y no bajás 8 kg, seguimos gratis hasta lograrlo.",
+  nutricion:"Protocolo 90 días · $900 USD: plan personalizado + seguimiento quincenal 1-1 + comunidad. Garantía: mejora medible en tus análisis o 3 meses más sin costo.",
+  inmobiliario:"Consultoría 90 días · $1.500 USD: sistema de captación + marca personal + scripts. Garantía: 3 exclusivas captadas o trabajamos gratis hasta lograrlas.",
+  agencia:"Servicio DFY 90 días · $1.000/mes: campañas + embudo + seguimiento de leads. Garantía: 30 pacientes nuevos o mes siguiente gratis (riesgo compartido).",
+  negocios:"Programa 6 meses · $3.600 USD (o 2 pagos de $1.800): sistemas de la A a la Z + consultorías semanales + comunidad. Garantía: resultados o devolución.",
+  estetica:"Programa 60 días · $800 USD: oferta high-ticket + contenido + sistema de reservas. Garantía: 15 clientas nuevas o seguimos sin costo.",
+  otro:"[RESULTADO claro] en [PLAZO] por [PRECIO] · incluye [ENTREGABLES] · Garantía: [temporal: seguimos gratis hasta lograrlo / monetaria: devolución]. Polarizar: solo para [PERFIL comprometido]."
+ },
+ latentes:{
+  fitness:"• Probó 3+ dietas y siempre recuperó el peso\n• Se avergüenza de sacarse la remera en la pileta\n• Cree que \"a mi edad el metabolismo ya no da\"\n• No tiene tiempo por trabajo/hijos y lo usa de excusa\n• Envidia (en silencio) a los amigos que se cuidan\n• Miedo a un susto de salud como el de su padre",
+  nutricion:"• Le dijeron \"es normal, tomá la pastilla\" y quedó frustrada\n• Probó dietas de moda y empeoró su relación con la comida\n• Siente que su cuerpo \"está roto\"\n• Miedo a no poder quedar embarazada\n• Desconfía de los médicos que no la escuchan\n• Sigue a 10 cuentas de salud hormonal pero no aplica nada",
+  inmobiliario:"• Depende del referido y le da vergüenza prospectar\n• Ve a colegas más jóvenes explotar en Instagram y siente que se queda atrás\n• Cree que su zona \"está muy competida\"\n• Pierde exclusivas por no saber justificar su comisión\n• Quiere dejar de \"perseguir\" clientes y que lo elijan",
+  agencia:"• Compró un curso de agencias de $997 y quedó decepcionado\n• Síndrome del impostor al cobrar retainers\n• Procrastina con la web y el logo en vez de prospectar\n• Culpa al nicho cuando no cierra\n• Tiene los $10K/mes en un pedestal\n• Empezó por frustración con su trabajo/universidad",
+  negocios:"• Compró cursos de gurús y quedó decepcionado (pero los sigue admirando)\n• Síndrome del impostor al cerrar sus primeros clientes\n• Se distrae con logos y webs en vez de prospectar\n• Impulso profundo: libertad financiera, de ubicación y de tiempo\n• Le echa la culpa al nicho o al mercado\n• Empezó su proyecto por enojo o miedo a la mediocridad",
+  estetica:"• Trabaja 10 horas y ve poca ganancia a fin de mes\n• Compite por precio con el salón de la otra cuadra\n• Sus clientas la aman pero no sabe atraer nuevas\n• Le da vergüenza mostrarse en cámara\n• Cree que subir precios le va a espantar la clientela",
+  otro:"Listá 5-10 creencias, miedos y frustraciones que tu mercado comparte (compraron algo y se decepcionaron, síndrome del impostor, culpan al contexto, deseo profundo de libertad/estatus/salud...)."
+ },
+ bio:{
+  fitness:"🏋️ Ayudo a hombres +35 a perder 8-10 kg en 16 semanas\n📊 +120 transformaciones reales\n⬇️ Descargá gratis la Guía Cuerpo Ejecutivo",
+  nutricion:"🌱 Nutricionista especialista en SOP\n✨ +80 mujeres regularon su ciclo en 90 días\n⬇️ Test gratis: ¿tu alimentación está inflamándote?",
+  inmobiliario:"🏠 Enseño a agentes a captar 3-5 exclusivas/mes\n🎯 15 años en real estate · +$40M vendidos\n⬇️ Guía gratis: el mensaje que abre puertas",
+  agencia:"🦷 Marketing para clínicas dentales\n📈 +30 pacientes nuevos/mes para mis clientes\n📩 Escribime PACIENTES y te muestro cómo",
+  negocios:"🚀 Ayudo a coaches a llegar a $10K/mes\n💰 $1.8M generados con mis sistemas\n⬇️ Mini-curso gratis de adquisición de clientes",
+  estetica:"💅 Ayudo a centros de estética a llenar la agenda\n👑 Clientas high-ticket sin bajar precios\n📩 Escribime AGENDA y te paso la guía gratis",
+  otro:"Línea 1: promesa (mensaje central resumido)\nLínea 2: prueba de autoridad (números, casos)\nLínea 3: CTA (recurso gratis o palabra clave por DM)"
+ },
+ leadmagnet:{
+  fitness:"«Guía Cuerpo Ejecutivo: 5 hábitos para perder grasa trabajando 10 horas al día» (PDF de 8 páginas + planilla de comidas)",
+  nutricion:"«Checklist SOP: 12 señales de que tu alimentación está desregulando tus hormonas» + mini-clase de 10 min",
+  inmobiliario:"«Los 7 mensajes que convierten dueños en exclusivas» (PDF con scripts textuales)",
+  agencia:"«Auditoría gratuita de 15 min: por qué tu clínica no llena la agenda» (video Loom personalizado)",
+  negocios:"«Mini-curso de 3 días: tu primer sistema de adquisición sin publicidad» (3 videos + planilla)",
+  estetica:"«Calculadora de precios: cuánto deberías cobrar por tus tratamientos» (planilla + video de 5 min)",
+  otro:"Checklist, guía PDF, mini-clase o planilla que resuelva UN problema urgente y deje con ganas de más. Se entrega a cambio del contacto o por palabra clave en DM."
+ },
+ hooks:{
+  fitness:"NICHO: «3 errores en el gym que hacen que a los 40 no bajes ni un gramo»\nVALOR: «La regla 80/20 de la pérdida de grasa que ningún influencer te cuenta»\nAUTORIDAD: «Cómo Martín (42, gerente, 2 hijos) bajó 11 kg en 4 meses — paso a paso»",
+  nutricion:"NICHO: «Si tenés SOP y desayunás esto, estás empeorando tu insulina»\nVALOR: «5 cambios simples que desinflaman en 2 semanas»\nAUTORIDAD: «Caso real: de ciclos de 60 días a ciclos regulares en 3 meses»",
+  inmobiliario:"NICHO: «El error que comete el 90% de los agentes al pedir una exclusiva»\nVALOR: «Qué decir cuando el dueño te dice 'lo vendo solo'»\nAUTORIDAD: «Cómo capté 4 exclusivas en 30 días sin conocer a nadie en la zona»",
+  agencia:"NICHO: «Por qué tu clínica invierte en ads y no llegan pacientes (no es el anuncio)»\nVALOR: «El mensaje de WhatsApp que duplica la asistencia a turnos»\nAUTORIDAD: «De 8 a 42 pacientes nuevos/mes: el embudo completo de esta clínica»",
+  negocios:"NICHO: «Por qué tu oferta de coaching no se vende (y no es el precio)»\nVALOR: «Cómo validar tu nicho en 7 días con 100 mensajes»\nAUTORIDAD: «Cómo mi cliente pasó de 0 a $10K/mes en 4 meses (desglose real)»",
+  estetica:"NICHO: «Si seguís vendiendo 'sesiones sueltas', tu agenda nunca va a estar llena»\nVALOR: «Cómo presentar un pack de $300 sin que te digan 'lo pienso'»\nAUTORIDAD: «Este centro pasó de $2K a $7K/mes en 60 días — esto cambiamos»",
+  otro:"NICHO: hook que habla del problema específico de tu comprador\nVALOR: tip aplicable ya (sin regalar el método completo)\nAUTORIDAD: caso de éxito con números y paso a paso"
+ },
+ troya:{
+  fitness:"«Juan! te hablo porque vi que entrenás por tu cuenta hace rato. Tengo un método para hombres +35 con poco tiempo con el que mis clientes están bajando 8-10 kg en 4 meses. ¿Te molesta si te mando un video de 1 minuto contándote cómo funciona? Si no te sirve, lo borrás y listo 👍»",
+  nutricion:"«Hola Caro! vi tu comentario en el post sobre SOP. Trabajo con mujeres con ese diagnóstico y armé un protocolo con el que están regulando su ciclo en 90 días. ¿Te puedo mandar un video corto explicándote cómo? Sin compromiso 🙂»",
+  inmobiliario:"«Diego, cómo va? Vi tu perfil y tus publicaciones de la zona norte. Ayudo a agentes a captar 3-5 exclusivas por mes con un sistema digital. ¿Te molesta si te paso un video de 90 segundos mostrándote cómo lo hacen mis clientes?»",
+  agencia:"«Dra. López, buenas! Encontré su clínica en Maps. Ayudamos a clínicas dentales a sumar +30 pacientes nuevos por mes con un embudo propio. ¿Le puedo mandar un video de 1 minuto mostrando cómo funciona con otras clínicas? Si no le interesa, no la molesto más»",
+  negocios:"«Nico! vi que vendés tu consultoría hace unos meses. Tengo un sistema con el que coaches como vos están agendando 5+ llamadas por semana sin ads. ¿Te mando un video de 1 min contándote cómo? Si no te sirve, todo bien 👍»",
+  estetica:"«Flor, hola! Vi tu centro en IG, hermoso el espacio ✨. Ayudo a dueñas de centros de estética a llenar la agenda con clientas de alto ticket. ¿Te puedo mandar un audio corto contándote cómo lo están haciendo otras chicas del rubro?»",
+  otro:"«[NOMBRE]! te escribo porque [OBSERVACIÓN personal de su perfil/negocio]. Tengo un [MÉTODO/SISTEMA] con el que [PERFIL como él] están logrando [RESULTADO en PLAZO]. ¿Te molesta si te mando un video/audio de 1 minuto contándote cómo funciona? Si no te sirve, no te molesto más 👍»\n\n[Video/audio de ~20 seg: quién sos + pedir permiso para la propuesta]"
+ },
+ vsl:{
+  otro:"GUION VSL NATIVO (90 seg):\n1. «Hola [NOMBRE], gracias por el interés» (5s)\n2. Problema: «Sé que como [PERFIL] probablemente te pase [DOLOR]» (15s)\n3. Mecanismo: «Nosotros lo resolvemos con [MÉTODO en 2-3 pasos simples]» (30s)\n4. Prueba: «Con esto, [CLIENTE] logró [RESULTADO] en [PLAZO]» (20s)\n5. CTA: «Si querés ver si aplica a tu caso, coordinamos una llamada corta esta semana. Te dejo el link 👇» (10s)\n\nGrabalo selfie, natural, sin sobre-editar. Menos es más: no des precios ni detalles."
+ }
+};
+
+/* ================== DATOS: FASES Y PASOS ================== */
+const PHASES=[
+ {id:"f0",name:"0 · Fundaciones",emoji:"🏗️",intro:"Sin esto, el contenido es ruido. El 90% del éxito está en nicho + servicio + oferta. Tiempo estimado: 1-2 semanas. No avances a contenido sin cerrar esta fase.",steps:[
+  {id:"nicho",t:"Elegir y validar el nicho",d:"Checklist SYK — el nicho debe cumplir TODO lo condicional:\n✅ ¿Podés nombrar 10 personas/empresas concretas con este problema?\n✅ ¿Ya pagan por resolverlo? ¿Pueden pagar $1.000-$2.000?\n✅ ¿Hay 30.000+ personas en el nicho?\n✅ ¿Hay competencia exitosa? (competencia = mercado validado)\n✅ ¿Está en crecimiento?\n✅ ¿Te ves trabajando con ellos 1-2 años? ¿Hablás su lenguaje?\n✅ ¿Es fácil encontrarlos y contactarlos?\n\nReglas: UN solo nicho · más específico = mejor · decidilo en días, no semanas. Los nichos no se saturan; las ofertas y métodos sí."},
+  {id:"mensaje",t:"Definir el mensaje central",d:"Una frase que gobierna toda la marca. Se usa en la bio, el pitch, los DMs y el contenido.",tpl:"Ayudo a [QUIÉN específico] a [RESULTADO concreto y medible] mediante [TU MECANISMO con nombre] sin [DOLOR u objeción principal].",ex:"mensaje"},
+  {id:"oferta",t:"Armar la oferta espejo",d:"Antes de publicar nada. Composición: Resultado + Tiempo + Método + Secretos (tu vehículo único) + Seguro (garantía) + Polarizar + Precio.\n\nSi estás empezando: Oferta Mínima Viable (precio bajo o comisión a 4-5 clientes para validar y generar casos). Si ya hay resultados: oferta irresistible high-ticket.\n\nRegla de precios SYK: NUNCA bajar precio; siempre subir valor. El precio comunica valor.",ex:"oferta"},
+  {id:"latentes",t:"Listar 5-10 condiciones latentes del mercado",d:"Las creencias, miedos y frustraciones que tu nicho comparte. Tu contenido y tus mensajes van a 'perforar' estas bolsas de presión psicológica. Si tu comunicación hace que se sientan entendidos, generás confianza.",ex:"latentes"},
+  {id:"voz",t:"Definir la voz de la marca",d:"3-5 rasgos de tono que filtran TODO el contenido:\n• ¿Qué opiniones defendés aunque incomoden?\n• ¿Qué palabras usás al HABLAR (no al escribir)?\n• ¿Qué historias personales explican por qué hacés esto?\n• ¿Qué NO harías nunca aunque funcione?\n\nEj: directo, con humor seco, sin tecnicismos, cero humo. Genuino siempre: inventar o exagerar es lo que quema audiencias."},
+  {id:"ico",t:"Calcular el ICO (complejidad operativa)",d:"Multiplicá: nichos (×3.5) · fuentes de tráfico (×1.5) · embudos (×1.0) · productos (×3.5) · equipo (×0.5).\n\nICO: <1 baja · 1-1.5 moderada · 1.5-2 alta · >2 extrema.\nIEN = ICO / (facturación mensual / 100.000). Debe dar <1.5.\n\nObjetivo del método: 1 nicho + 1 producto + mínimas fuentes. Menos es más — adición mediante sustracción."}
+ ]},
+ {id:"f1",name:"1 · Perfil",emoji:"📱",intro:"El perfil es tu landing page. En prospección e inbound, un perfil sin confianza mata todo. Tiempo: 2-3 días.",steps:[
+  {id:"foto",t:"Foto de perfil profesional",d:"Clara, con rostro visible, buena luz. Si transmite el rubro (ropa deportiva, ambo, traje según nicho), mejor."},
+  {id:"bio",t:"Escribir la bio que convierte",d:"Estructura de 3 líneas: promesa + prueba de autoridad + CTA. Nombre buscable: incluir la keyword del nicho en el campo nombre (ej: «Caro | Nutricionista SOP»).",ex:"bio"},
+  {id:"destacadas",t:"Armar historias destacadas",d:"Mínimo 4: ✅ Resultados/testimonios · 👤 Quién sos (historia) · ⚙️ Tu método · 💬 Cómo trabajar con vos. Usá portadas consistentes."},
+  {id:"leadmagnet",t:"Crear el lead magnet + link",d:"El recurso gratuito es el inicio del 99% de las conversaciones de venta inbound. El link del perfil va al recurso o a Calendly — no a una web institucional.",ex:"leadmagnet"},
+  {id:"feed",t:"Publicar los primeros 9-12 contenidos de nicho",d:"Nadie confía en un perfil vacío. Antes de escalar prospección o ads, el feed debe demostrar expertise. Usá los 3 tipos de contenido de la Fase 2."}
+ ]},
+ {id:"f2",name:"2 · Contenido",emoji:"🎬",intro:"El inbound tarda 3-6 meses en dar resultados — \"cuando llueve, diluvia\". Mientras tanto, el outbound (Fase 4) paga las cuentas. Constancia sin excepción.",steps:[
+  {id:"pilares",t:"Definir los 3 pilares de contenido",d:"Mezcla semanal SYK:\n• NICHO (el más importante): habla DIRECTO a tu comprador con temas específicos de su mundo.\n• VALOR/PERSPECTIVA: info aplicable ya — regulá cuánto regalás (tu mercado no es el de Hormozi).\n• AUTORIDAD: resultados tuyos y de tus clientes con números.\n+ Lifestyle/motivacional solo si vendés B2C.",ex:"hooks"},
+  {id:"cadencia",t:"Fijar la cadencia semanal",d:"Mínimo viable:\n• 3-4 reels cortos (estructura: Hook 3 seg → Desarrollo → CTA)\n• 1 contenido largo (YouTube o carrusel profundo) para nutrir\n• Stories DIARIAS\n\nEl contenido corto trae alcance; el largo construye confianza. Ninguna marca grande se construyó solo con contenido corto."},
+  {id:"guion",t:"Guionar los primeros 8 reels",d:"Estructura de guion por reel:\n1. HOOK (3 seg): frase o imagen que frena el scroll\n2. PROBLEMA: nombralo como lo diría tu cliente\n3. DESARROLLO: 2-3 puntos concretos\n4. EVIDENCIA: caso, número o demostración\n5. CTA: «comentá [PALABRA] y te mando la guía» / «seguime para más»\n\nTip: usá la IA de Guionado de Rama (o skill guiones-by-rama) para iterar."},
+  {id:"stories",t:"Sistema de stories diarias",d:"El arma de venta más subestimada (responsable de gran parte de la facturación de SYK). Mezcla:\n• Vida/proceso (backstage, rutina) — conexión\n• Prueba social (testimonios, resultados, chats)\n• Interacción (encuestas, cajas de preguntas) — activa el algoritmo y detecta interesados\n• Venta directa 1-2 veces/semana con hand raisers: «respondé HOY y te mando el recurso»"},
+  {id:"largo",t:"Contenido largo quincenal/semanal",d:"YouTube, carruseles profundos o newsletter. Objetivo: nutrir y convertir a los que ya te conocen. Temas: tu método explicado, casos de éxito desglosados, opiniones polarizantes del nicho."}
+ ]},
+ {id:"f3",name:"3 · Automatización",emoji:"🤖",intro:"Capturá cada gota de atención que genera el contenido. Configurar una vez, revisar semanal.",steps:[
+  {id:"manychat",t:"Configurar Manychat con palabra clave",d:"En cada reel con recurso: «comentá [PALABRA] y te lo mando por DM». Manychat responde automático con el lead magnet y dispara la conversación. Cada DM entra al flow Hand Raiser (Fase 5).\n\nConfiguración: cuenta Manychat → conectar IG → automatización por keyword → mensaje con el recurso + pregunta abierta («¿qué problema estás intentando resolver?»)."},
+  {id:"ads",t:"(Cuando factures $10-30K/mes) Follow Me Ads",d:"Recién con $10-30K/mes y $150+/mes de presupuesto: campañas de reconocimiento e interacción para potenciar el orgánico. Meta es la plataforma principal del método. Antes de eso: NO pagar ads — el alcance está garantizado pero la conversión no, y necesitás espalda para testear."}
+ ]},
+ {id:"f4",name:"4 · Outbound",emoji:"🎯",intro:"Desde el DÍA 1, en paralelo al contenido. Mientras la marca crece, el dinero sale de acá. Regla de oro: consistencia — 30-40 contactos/día en IG, sin excepción. Resultados en 2-4 semanas (outbound lag).",steps:[
+  {id:"leads",t:"Armar la fuente de leads",d:"Instagram: búsqueda del nicho, seguidores de referentes/influencers del nicho, hashtags, Google: instagram.com -inurl:/p [nicho] [país].\nFacebook: miembros nuevos de los 5-10 grupos top del nicho.\nGoogle Maps: negocios locales (clínicas, centros, inmobiliarias).\nOrganizá todo en una planilla (nombre + link + estado A/B/C/D).\n\nLímites diarios IG: 50 follows, 30 DMs fríos, 50 likes, 20 comentarios. Actuá como humano."},
+  {id:"troya",t:"Escribir el mensaje 'Caballo de Troya'",d:"Mensaje de permiso: pedís autorización para mandar la propuesta (video/audio de 20 seg). Nunca detalles ni precios — vendés la llamada, no el servicio. + 1 follow-up si no responde.",ex:"troya"},
+  {id:"vsl",t:"Grabar el VSL nativo de 90 segundos",d:"Cuando aceptan recibir la propuesta (pulgar arriba), mandás el VSL: video corto que explica oferta + prueba social en menos de 2 minutos.",ex:"vsl"},
+  {id:"fups",t:"Cadenas de follow-up (7 + 7)",d:"Tras el VSL: 7 seguimientos (mensajes, GIFs, memes — livianos, sin desesperación).\nTras enviar Calendly: 7 seguimientos más.\nLa mayoría de las respuestas llegan en el 2°-3° follow-up. El seguimiento es lo más importante después del volumen."},
+  {id:"validar",t:"Validar el sistema: 100 contactos, TAP ≥2,5%",d:"Solo se escala lo probado: si no agendás con 200 mensajes, no vas a agendar con 200.000. Contactá 100 leads con la estructura → si la tasa de agenda es ≥2,5%, duplicá volumen. Si no: revisá el tubo que falla (¿no abren? ¿no responden? ¿no agendan?) y cambiá UNA variable por vez."}
+ ]},
+ {id:"f5",name:"5 · Ventas",emoji:"💰",intro:"Todo lo anterior existe para llegar acá: conversaciones → llamadas → clientes. Los motores de la acción son DOLOR + CONFIANZA.",steps:[
+  {id:"handraiser",t:"Dominar el flow Hand Raiser (DMs inbound)",d:"Los 8 pasos con quien levanta la mano por tu contenido/recurso:\n1. Conexión: «vi que descargaste [RECURSO], ¿qué problema querías resolver?»\n2. Situación actual (70% escucha, 30% micro-consultoría)\n3. Trabas/dolores: «¿cuál es tu mayor freno para [OBJETIVO]?»\n4. Objetivos: «¿qué resultado concreto querés en [PLAZO]?»\n5. Cualificación (solo si hay dudas): «nuestros programas parten de [X], ¿te resultaría viable?»\n6. Posicionar la llamada como sesión de valor: análisis + plan de acción + cómo funciona el programa\n7. Triage de red flags (urgencia baja, falta de decisor, presupuesto dudoso)\n8. Confirmación + recordatorios el día de la llamada"},
+  {id:"precall",t:"Proceso pre-call",d:"Contactar APENAS agenda (lead caliente):\n«[NOMBRE], como va? Te habla [X] del equipo de [MARCA]. Tendríamos la reunión el [DÍA] a las [HORA de su huso]. ¿Me confirmás?»\n→ «Estoy armando un plan de acción personalizado para tu caso, ¿qué te gustaría llevarte de la reunión?»\n→ Mantener conversación hasta 1-2 hs antes.\nSi no contesta: 2° mensaje pidiendo confirmación; 3°: cancelar liberando el espacio (escasez real)."},
+  {id:"guionventas",t:"Practicar el Guión de Ventas (5 fases)",d:"Reglas: no reaccionar a las respuestas (solo «ok/entiendo») · tomar notas · el guión es una guía, la ESTRUCTURA es sagrada.\n\n1. MARCO: autoridad + dinámica + «al final me decís un simple SÍ o NO — buscamos una decisión hoy»\n2. DESCUBRIMIENTO: ¿quién sos? ¿qué te hizo agendar? ¿por qué ahora? ¿por qué conmigo? ¿mayor cuello de botella? ¿qué te genera? (marcar la brecha A→B)\n3. TRANSICIÓN: recapitular dolores pidiendo permiso → «calificás, ¿te comento los detalles?»\n4. PRESENTACIÓN (8-10 min, precio AL INICIO): inversión + 3 pilares (qué + implementación + caso de éxito) + entregables\n5. CIERRE: ¿te gusta? ¿conecta? ¿dudas antes de inscripciones? → cierre alternativo: «¿2 pagos de $X o 1 de $X con descuento?»"},
+  {id:"b2bb2c",t:"Adaptar el proceso a B2B o B2C",d:"B2C: venta emocional, corta — 1 llamada estratégica (o cierre por chat). Clave: pre-call fuerte (triage o live transfer).\nB2B: venta lógica — demo call (cualificación) + llamada estratégica. Si el lead viene nutrido, puede resolverse en una."}
+ ]},
+ {id:"f6",name:"6 · Métricas",emoji:"📊",intro:"Lo que no se mide, no se mejora. Trackear TODOS los días. Estrella Polar: llamadas agendadas por semana. Cargá tus números en la pestaña Tracker.",steps:[
+  {id:"tracker",t:"Completar el tracker semanal (pestaña 📊 Tracker)",d:"Registrá cada semana: contactos iniciados (A), interesados (B), Calendly enviados (C), agendas (D), shows, cierres y facturación. La app calcula las tasas sola.\n\nBenchmarks SYK: TAP ≥2,5% · Show-up ≥50% · Cierre ≥15-20%."},
+  {id:"estrella",t:"Revisar la Estrella Polar cada semana",d:"Si las agendas semanales están en KPI → no cambies nada, subí volumen.\nSi fallan → identificá QUÉ tubo de la tubería falla (¿no responden? ¿no agendan? ¿no asisten? ¿no cierran?) y arreglá SOLO ese tubo cambiando una variable por vez."},
+  {id:"revision",t:"Revisión mensual del negocio",d:"• Tasa de éxito de clientes (≥50% DFY / 30% DWY)\n• Tasa de reembolsos <5% · pesadilla <10% · churn <15%\n• ¿Casos de éxito nuevos? → convertirlos en contenido de autoridad y subir precio\n• Con 25-30 llamadas/mes consistentes → delegar prospección a un setter\n• ¿ICO sigue bajo? No agregar nichos/productos: profundizar."}
+ ]}
+];
+
+/* ================== ESTADO ================== */
+let DB={clients:[],activeId:null};
+const LS="syk_planner_v1";
+function load(){try{const d=localStorage.getItem(LS);if(d)DB=JSON.parse(d)}catch(e){}}
+function save(){localStorage.setItem(LS,JSON.stringify(DB))}
+function client(){return DB.clients.find(c=>c.id===DB.activeId)}
+function uid(){return Math.random().toString(36).slice(2,9)}
+
+/* ================== CLIENTES ================== */
+function openNewClient(){
+ document.getElementById('fName').value='';document.getElementById('fService').value='';document.getElementById('fRevenue').value='';
+ const sel=document.getElementById('fNiche');sel.innerHTML=Object.entries(NICHES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+ document.getElementById('modal').classList.add('show');
+}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+function saveClient(){
+ const name=document.getElementById('fName').value.trim();if(!name)return alert('Poné un nombre');
+ const c={id:uid(),name,niche:document.getElementById('fNiche').value,service:document.getElementById('fService').value,revenue:document.getElementById('fRevenue').value||0,done:{},notes:{},metrics:[],phase:"f0",created:Date.now()};
+ DB.clients.push(c);DB.activeId=c.id;save();closeModal();renderAll();
+}
+function delClient(id){if(!confirm('¿Eliminar este cliente y todo su progreso?'))return;DB.clients=DB.clients.filter(c=>c.id!==id);if(DB.activeId===id)DB.activeId=DB.clients[0]?.id||null;save();renderAll()}
+function progress(c){const total=PHASES.reduce((a,p)=>a+p.steps.length,0);const done=Object.values(c.done).filter(Boolean).length;return Math.round(done/total*100)}
+
+/* ================== RENDER ================== */
+function renderAll(){renderSidebar();renderTop();renderTabs();renderContent()}
+function renderSidebar(){
+ const el=document.getElementById('clientList');
+ el.innerHTML=DB.clients.map(c=>`<div class="clientCard ${c.id===DB.activeId?'active':''}" onclick="DB.activeId='${c.id}';save();renderAll()">
+  <div class="cname">${esc(c.name)}</div><div class="cniche">${NICHES[c.niche]?.label||c.niche} · ${progress(c)}% completado</div>
+  <div class="cbar"><div style="width:${progress(c)}%"></div></div></div>`).join('')||'<div style="color:var(--muted);font-size:12.5px;padding:10px">Sin clientes todavía.</div>';
+}
+function renderTop(){
+ const c=client();const el=document.getElementById('topbar');
+ if(!c){el.innerHTML='<h2>SYK Action Planner</h2>';return}
+ el.innerHTML=`<h2>${esc(c.name)}</h2><span class="tag">${NICHES[c.niche]?.label}</span>
+ <span class="meta">${esc(c.service||'')}</span><div class="spacer"></div>
+ <button class="btn small" onclick="exportClient()">⬇ Exportar cliente</button>
+ <button class="btn small danger" onclick="delClient('${c.id}')">Eliminar</button>`;
+}
+function renderTabs(){
+ const c=client();const el=document.getElementById('phaseTabs');
+ if(!c){el.innerHTML='';return}
+ const tabs=PHASES.map(p=>{
+  const done=p.steps.filter(s=>c.done[p.id+'.'+s.id]).length;
+  return `<button class="ptab ${c.phase===p.id?'active':''}" onclick="client().phase='${p.id}';save();renderAll()">${p.emoji} ${p.name}<span class="pct">${done}/${p.steps.length}</span></button>`;
+ }).join('');
+ el.innerHTML=tabs+`<button class="ptab ${c.phase==='tracker'?'active':''}" onclick="client().phase='tracker';save();renderAll()">📊 Tracker</button>`;
+}
+function renderContent(){
+ const c=client();const el=document.getElementById('content');
+ if(!c){el.innerHTML='<div class="empty">👋 Creá tu primer cliente con <b>+ Nuevo cliente</b><br>y empezá a trabajar el plan de acción paso a paso.</div>';return}
+ if(c.phase==='tracker')return renderTracker(el,c);
+ const p=PHASES.find(x=>x.id===c.phase)||PHASES[0];
+ el.innerHTML=`<div class="phase-intro">${esc(p.intro)}</div>`+p.steps.map(s=>{
+  const key=p.id+'.'+s.id;const done=c.done[key];const open=c._open===key;
+  let body=`<div class="step-desc">${esc(s.d)}</div>`;
+  if(s.tpl)body+=`<div class="block template"><button class="copybtn" onclick="copyTxt(this,\`${esc2(s.tpl)}\`)">copiar</button><h4>📋 Plantilla</h4><pre>${esc(s.tpl)}</pre></div>`;
+  if(s.ex&&EX[s.ex]){const e=EX[s.ex][c.niche]||EX[s.ex].otro;const g=EX[s.ex].otro;
+   body+=`<div class="block example"><button class="copybtn" onclick="copyTxt(this,\`${esc2(e)}\`)">copiar</button><h4>💡 Ejemplo — ${NICHES[c.niche]?.label}</h4><pre>${esc(e)}</pre></div>`;
+   if(e!==g)body+=`<div class="block template"><h4>📋 Plantilla genérica</h4><pre>${esc(g)}</pre></div>`;}
+  body+=`<textarea class="step-notes" placeholder="Notas / versión final para este cliente..." onchange="client().notes['${key}']=this.value;save()">${esc(c.notes[key]||'')}</textarea>`;
+  return `<div class="step ${done?'done':''} ${open?'open':''}">
+   <div class="step-head" onclick="toggleStep('${key}')">
+    <div class="step-check" onclick="event.stopPropagation();toggleDone('${key}')">${done?'✓':''}</div>
+    <div class="step-title">${esc(s.t)}</div><div class="step-arrow">${open?'▲':'▼'}</div></div>
+   <div class="step-body">${body}</div></div>`;
+ }).join('');
+}
+function toggleStep(k){const c=client();c._open=c._open===k?null:k;renderContent()}
+function toggleDone(k){const c=client();c.done[k]=!c.done[k];save();renderAll()}
+function copyTxt(btn,t){navigator.clipboard.writeText(t).then(()=>{btn.textContent='✓ copiado';setTimeout(()=>btn.textContent='copiar',1500)})}
+
+/* ================== TRACKER ================== */
+function renderTracker(el,c){
+ if(!c.metrics.length)c.metrics.push(newWeek(c));
+ const tot=c.metrics.reduce((a,w)=>{['a','b','cal','d','show','close','cash'].forEach(k=>a[k]=(a[k]||0)+(+w[k]||0));return a},{});
+ const rate=(x,y)=>y>0?(x/y*100).toFixed(1)+'%':'—';
+ el.innerHTML=`
+ <div class="kpi-cards">
+  <div class="kpi"><div class="v">${tot.d||0}</div><div class="l">Agendas totales (⭐ Estrella Polar)</div></div>
+  <div class="kpi"><div class="v">${rate(tot.d,tot.a)}</div><div class="l">TAP — tasa de agenda (KPI ≥2,5%)</div></div>
+  <div class="kpi"><div class="v">${rate(tot.show,tot.d)}</div><div class="l">Show-up (KPI ≥50%)</div></div>
+  <div class="kpi"><div class="v">${rate(tot.close,tot.show)}</div><div class="l">Cierre (KPI ≥15-20%)</div></div>
+  <div class="kpi"><div class="v">$${(tot.cash||0).toLocaleString()}</div><div class="l">Facturación acumulada</div></div>
+ </div>
+ <table><thead><tr><th>Semana</th><th>Iniciados (A)</th><th>Interesados (B)</th><th>Calendly (C)</th><th>Agendas (D)</th><th>Shows</th><th>Cierres</th><th>Cash USD</th><th>TAP</th><th></th></tr></thead>
+ <tbody>${c.metrics.map((w,i)=>`<tr>
+  <td>${esc(w.week)}</td>
+  ${['a','b','cal','d','show','close','cash'].map(k=>`<td><input type="number" value="${w[k]||''}" onchange="client().metrics[${i}].${k}=+this.value;save();renderContent()"></td>`).join('')}
+  <td class="rate">${rate(w.d,w.a)}</td>
+  <td><button class="btn small danger" onclick="client().metrics.splice(${i},1);save();renderContent()">✕</button></td></tr>`).join('')}
+ </tbody></table>
+ <div style="margin-top:14px"><button class="btn primary" onclick="client().metrics.push(newWeek(client()));save();renderContent()">+ Agregar semana</button></div>
+ <p style="margin-top:16px;font-size:12.5px;color:var(--muted);line-height:1.7">Regla SYK: si la Estrella Polar (agendas) está en KPI → no cambies nada, subí volumen. Si falla, identificá el tubo exacto (¿no responden? ¿no agendan? ¿no asisten? ¿no cierran?) y cambiá UNA variable por vez.</p>`;
+}
+function newWeek(c){const n=(c.metrics?.length||0)+1;return{week:'S'+n,a:0,b:0,cal:0,d:0,show:0,close:0,cash:0}}
+
+/* ================== EXPORT / IMPORT ================== */
+function exportData(){dl(JSON.stringify(DB,null,1),'syk_planner_respaldo.json')}
+function exportClient(){const c=client();if(!c)return;dl(JSON.stringify({clients:[c],activeId:c.id},null,1),'syk_plan_'+c.name.replace(/\s+/g,'_')+'.json')}
+function importData(ev){
+ const f=ev.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{const d=JSON.parse(r.result);
+  if(!d.clients)throw 0;
+  d.clients.forEach(nc=>{const i=DB.clients.findIndex(x=>x.id===nc.id);if(i>=0){if(confirm('El cliente "'+nc.name+'" ya existe. ¿Reemplazar con la versión importada?'))DB.clients[i]=nc}else DB.clients.push(nc)});
+  DB.activeId=d.activeId||DB.clients[0]?.id;save();renderAll();alert('Importado correctamente ✅');
+ }catch(e){alert('Archivo inválido')}};
+ r.readAsText(f);ev.target.value='';
+}
+function dl(txt,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;a.click()}
+
+/* ================== UTILS ================== */
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function esc2(s){return String(s??'').replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+
+/* ============ CASOS REALES DE MENTORÍAS ============ */
+const CASOS=[
+{c:"Ofertas y promesas (casos reales)",t:"Nicho intangible (desarrollo humano, B2C) — cómo tangibilizar sin medir",b:["Hay nichos donde la oferta medible es IMPOSIBLE y está bien: fórmula = dolor elegido → punto B → PARA QUÉ quiere llegar ahí.","Ej.: «te acompaño a eliminar tus creencias limitantes y desbloquear tu potencial para llevar tu negocio al siguiente nivel».","B2C compra por identificación emocional (testimonios de gente igual a él); B2B exige números.","Lo único que le saca poder a una oferta es que no se entienda qué se va a conseguir."]},
+{c:"Ofertas y promesas (casos reales)",t:"Estratega de contenido sin casos propios — recortar la tubería",b:["En OMV nunca prometas facturación: entre tu trabajo y la plata hay etapas que no controlás.","«Recortá la tubería: hacete muy buena en UNA parte» → promesa de llamadas agendadas.","Prometer $3K/mes extra es tierra de nadie: los que facturan eso no se motivan, los que no, no pueden pagar.","Prometé plata recién cuando tengas números propios: 70 agendas → 50 shows → 20% cierre → AOV $1.500 = $15K."]},
+{c:"Ofertas y promesas (casos reales)",t:"Setter manager ($3M generados) — cuándo SÍ prometer facturación",b:["Solo si controlás o auditás TODA la tubería: si optimizás agendas y el cuello está en el cierre, no se convierte en plata.","Caso real SYK: sobraban leads pero los closers no tenían capacidad — más agendas hubieran roto el sistema.","Alternativa potente: «auditamos tu sistema comercial, encontramos TU cuello de botella y lo resolvemos para que factures $10K extra en 90 días».","Cobro en OMV: fee inicial bajo + 20-25% o por agenda según la promesa."]},
+{c:"Ofertas y promesas (casos reales)",t:"Agencia de VSL funnels — cobro por llamada calificada (oferta espejo pura)",b:["Cobrar POR LLAMADA CALIFICADA descontando el costo publicitario: cobro $100/llamada − $40 de costo de ads = $60 míos.","Incentivo alineado: mientras mejor soy, más gano yo y menos paga el cliente. Cobrar cada 15-20 agendas.","Fee inicial máximo ~$200 justificado en costos. Estandarizar la inversión del cliente (ej. $500/mes en ads).","Velocidad: nicho+oferta se definen EN una llamada (grabar → ChatGPT → resumen); guión de VSL al día siguiente. «30 días para eso es un montón»."]},
+{c:"Ofertas y promesas (casos reales)",t:"PNL para vendedores — redefinir el avatar en vez de competir",b:["No compitas donde no tenés autoridad (academias de closing con cifras millonarias): ampliá el avatar de «closers» a «coaches y vendedores».","Tu vehículo único (PNL, lenguaje hipnótico) es el diferencial que te posiciona.","El dolor real no era «depender de guiones»: era la tasa de cierre baja. La promesa se construye sobre el dolor REAL.","Promesa final: corta — resultado concreto + vehículo único + a quién + horizonte temporal (<120 días)."]},
+{c:"Ofertas y promesas (casos reales)",t:"Agencia de IA sin nicho, desbordada — el caso ICO de libro",b:["7 proyectos todos distintos = colapso. «Tenés que anicharte. No veo otra solución.»","Techo de un freelancer con servicio personalizado: 4 clientes; productizado en un nicho: 6-7.","Plan de choque en 1 semana: definir nicho → rehacer landing/VSL → cambiar links de videos → contenido de nicho. Aceptar que agendas y views caen ~80%.","Elegir nicho: matriz de promedio ponderado. Factor #1: ¿te ves trabajando con esa gente 5-10 años?"]},
+{c:"Ofertas y promesas (casos reales)",t:"Trading — comunidad, VSOP y operaciones simples",b:["Comunidades gratuitas: «la gente que busca comunidad gratis no es una ballena» — en SYK nunca convirtieron; solo bolsa de trabajo.","Lo que sí mueve en trading: live trading semanal (mejor YouTube en vivo, queda subido).","Validar VSOP con oferta ÚNICA ~$1.000 (no cebolla). Cebolla recién después de validar.","«Es un curso con calls, no es Amazon»: no frenes la venta por miedos operativos. ¿50 clientes? «Podés meter 150; si aparece el problema, lo resolvemos.»"]},
+{c:"Contenido y marca (frameworks de Rama)",t:"Estructura universal de guion y mix de contenido",b:["Guiones (y carruseles): Atención → Problema → Solución → Prueba social → CTA. Siempre.","Mix: 30% contenido personal/mentalidad, 70% contenido de nicho. O bien: Problemas técnicos 50% · Resultados 30% · Mentalidad 20%.","Mínimo 1 reel con CTA por día: cuenta de 2.300 seguidores = 3-4 comentarios/video = 21+ conversaciones/semana.","El CTA en video no molesta: ya diste valor gratis. Nicho de tema único (ej. sueño): tema core + temas colindantes (rutina, ejercicio, nutrición)."]},
+{c:"Contenido y marca (frameworks de Rama)",t:"Hooks que no se scrollean (masterclass en vivo)",b:["Hook genérico = scroll garantizado: «no vivís de tu marca personal porque no sabés cómo» servía en 2013, hoy no. Test: ¿VOS lo scrollearías?","Hook visual: pila de libros en la mano + «tenés todo este conocimiento pero le tenés terror a ESTO» (mostrás una cámara).","Lenguaje que duela: «hay pibes de 20 que suben videítos y hacen $100K/mes, y vos estudiaste 10 años y no hacés ni $5K».","Autoridad prestada: «le pagué $50.000 a este tipo para explicarte esto en 23 segundos».","Errores que matan videos: música que tapa el hook, subtítulos sobre la cara, edición IA recargada, presentador inexpresivo. Cámara limpia > sobreproducción."]},
+{c:"Contenido y marca (frameworks de Rama)",t:"Carruseles: los 2 tipos",b:["Tipo 1 — Ángulo de dolor: estructura clásica; LA CLAVE ES EL ÁNGULO. «No te contratan como DJ porque no sos convocante» explotó; el mismo creador hablando de bookers, nada.","Hook al ego: «Los DJs que más fechas tienen no son los que mejor pinchan».","Tipo 2 — Entregable directo (hand raiser): «se descubrió esta IA → cómo funciona → resultado → comentá X y te la mando». Más viral, ideal faceless para tráfico frío, pero leads más fríos.","El de dolor trae leads de más calidad; el de entregable más alcance."]},
+{c:"Contenido y marca (frameworks de Rama)",t:"La Campana de Gauss de la comunicación",b:["Nivel 1 = quebrados · Nivel 2 = tu cliente real · Nivel 3 = avanzados.","Comunicale al nivel 3 → te llega 80% de nivel 2 + 20% de nivel 3 (efecto aspiracional).","El error de todos: hablarle a su cliente promedio → les llega el nivel 1.","Tampoco irse demasiado arriba (llega gente calificada pero nadie responde): es «correrse un poquito a la derecha».","Complemento: videos anti-objeción («¿pagaste otra mentoría y no funcionó? problema tuyo por no investigar») — ablandan objeciones y suben la calificación."]},
+{c:"Stories y DMs (sistema de Rama)",t:"Algoritmo de historias + secuencia CTA completa",b:["1) Borrar temprano las historias del día anterior. 2) Subir UNA historia gancho que explote en vistas. 3) Esperar ~1 hora. 4) Subir la secuencia CTA.","Secuencia: mostrar trabajo con clientes → «¿qué hago con ellos?» (entregables en un beneficio: «te resuelvo todo el contenido, así no pensás y convertís») → FOMO opcional → cierre.","Cierre: «si querés que te resuelva [X] para lograr [SUEÑO] sin [OBJECIONES], mandame DOC y te paso el doc» — suena a documento, NO a venta.","CTA = hand raiser con los entregables de tu programa. Las WINS siempre van DENTRO de una secuencia CTA.","Cadencia: 2 CTA de recurso + 2 hand raisers por semana. En historias se ofrece un recurso, nunca una llamada."]},
+{c:"Stories y DMs (sistema de Rama)",t:"Lead magnets: la casa sin la llave",b:["Estructuralos para que falte el último 10%: «te construyo la casa entera, pero la llave la tengo yo».","En nichos de acompañamiento ni importa: «el gordo que no entrena no entrena ni con el curso gratis — no pagan por información, pagan por acompañamiento».","El mejor recurso = el que más (y mejores) leads te responden. Se descubre probando ángulos de dolor.","¿Saturación? No existe. Si hay fricción o tu cuenta es chica: dalo de entrada, recarga confianza.","Los Looms casi nadie los mira: «no les interesa VER el recurso, les interesa TENERLO». Reciclá los mismos por meses."]},
+{c:"Stories y DMs (sistema de Rama)",t:"Abridores, leads calificados y tire kickers",b:["Mejor abridor: «¿cómo vas? ¿estás entrenando o por ahora nada?» (doble opción, siempre eligen una) o «¿qué probaste que no te funcionó?».","Lead calificado = alguien que PODÉS ayudar. Que no tenga plata hoy NO lo descalifica: «el que verdaderamente quiere, la consigue». La llamada se toma igual.","Nunca asumir «recién empieza = no tiene plata»: preguntá a dónde quiere llegar y vendé lo más caro.","Tire kickers (piden recursos y nunca agendan): cortar con honestidad + redirigir al dolor y a la agenda. «Si te lo tomás personal, perdiste.»"]},
+{c:"Escalado y transiciones",t:"Rebranding / cambio de programa sin morir en el intento",b:["Si el mercado pide otra cosa (70% decía «no quiero ser viral, quiero clientes»): cambiá el mensaje YA — la cuenta no sufre, el alcance se mantiene.","NUNCA dejar de vender en la transición (money in): vendé el programa nuevo aunque no esté grabado; lo que falta se compensa con TU atención.","Convertí el cambio en marketing: mini-lanzamiento dramático («CDN muere para siempre») — a la gente le encanta el chisme. Carrusel post-mortem: 5.000 likes, stories vistas por 60.000.","Masterclass/webinar de lanzamiento: cierre agendando consultoría gratuita, nunca link de pago directo en high-ticket.","Revenue Generating Activities (subir historias + grabar videos) NUNCA se frenan."]},
+{c:"Escalado y transiciones",t:"Low ticket + high ticket / un solo negocio",b:["El low ticket ($30-40) se vende SOLO con ads (landing + VSL); jamás promocionarlo en la marca personal («te llega gente sin un mango»).","Contenido del low ticket: perspectivas + 10% del valor — que quede excusa para pagar más. Usalo como downsell en chat.","Dos negocios a la vez: no. «Con cualquiera hacés plata, pero es difícil escalar UNO — no me imagino dos.»","Camino correcto: escalar la agencia → graduación → vender el DWY al MISMO nicho (Juan Pereira: agencia para realtors → consultoría para realtors).","Nichos tipo clínicas estéticas/cirugía: se venden con ADS, el orgánico es secundario (1-2 videos/semana de validación)."]},
+{c:"Escalado y transiciones",t:"Operativa con clientes (agencia de contenido/funnels)",b:["Contrato ultra corto mostrado y firmado EN la misma llamada = señal de compromiso.","Con 1-2 casos de éxito ya cobrás retainer/adelantado.","Lo más importante del VSL funnel: trackear TODO el embudo — el creativo más barato por CPM no siempre es el más rentable.","Tracker manual 1×/día + columna de notas: UN cambio a la vez y verificar a la semana.","Truco Meta: eventos de conversión personalizados a la API (optimizar solo por leads que dicen tener +$10K para invertir) → baja costos.","CRM = solo ventas (si lo complejizás, los setters lo llenan mal); ficha de cliente en Notion; Trello para editores."]}
+];
+function showCasos(){
+ document.getElementById('phaseTabs').innerHTML='';
+ document.getElementById('topbar').innerHTML='<h2>📚 Casos reales de las mentorías SYK</h2><div class="spacer"></div><button class="btn small" onclick="renderAll()">← Volver al plan</button>';
+ var cats=[...new Set(CASOS.map(x=>x.c))];
+ document.getElementById('content').innerHTML='<div class="phase-intro">Extraído de las consultorías en vivo de Ramiro, Juani y Matías: diagnósticos reales, frameworks y frases textuales aplicados a nichos concretos. Usalo como biblioteca de referencia mientras trabajás el plan de cada cliente.</div>'+cats.map(cat=>'<h3 style="margin:20px 0 10px;color:var(--accent);font-size:15px">'+cat+'</h3>'+CASOS.filter(x=>x.c===cat).map(x=>'<div class="step open"><div class="step-head" style="cursor:default"><div class="step-title">'+x.t+'</div></div><div class="step-body"><ul style="padding:12px 0 4px 18px;line-height:1.75;font-size:13.5px;color:#c7ccda">'+x.b.map(i=>'<li style="margin-bottom:6px">'+i+'</li>').join('')+'</ul></div></div>').join('')).join('');
+}
+
+load();renderAll();
+</script>
+</body>
+</html>
