@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYK Action Planner</title>
+<title>Crea tu Voz</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#0f1115;--panel:#181b22;--panel2:#1f232d;--border:#2a2f3b;--text:#e8eaf0;--muted:#9aa1b2;--accent:#f5b942;--accent2:#4f8ef7;--green:#3ecf8e;--red:#f26d6d;--radius:12px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -81,16 +83,21 @@ td input{width:70px;background:var(--bg);border:1px solid var(--border);color:va
 .empty{color:var(--muted);text-align:center;margin-top:80px;line-height:1.8;font-size:14px}
 .phase-intro{background:var(--panel2);border-left:3px solid var(--accent);border-radius:8px;padding:13px 16px;font-size:13px;line-height:1.6;color:#c7ccda;margin-bottom:16px;white-space:pre-wrap}
 .tag{display:inline-block;font-size:10.5px;background:var(--panel2);border:1px solid var(--border);border-radius:20px;padding:2px 9px;color:var(--muted);margin-left:6px}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#0d1f16;font-weight:600;font-size:13.5px;padding:11px 22px;border-radius:30px;z-index:99;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+.ferr{color:var(--red);font-size:12px;margin-top:6px;display:none}
+.cloudinfo{font-size:12px;color:var(--muted);line-height:1.6;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:12px;max-height:180px;overflow-y:auto}
+.cloudinfo code{color:var(--accent2);font-size:11px}
 @media(max-width:760px){#sidebar{width:200px;min-width:200px}}
 </style>
 </head>
 <body>
 <div id="sidebar">
-  <div class="logo"><h1>⚡ SYK Action Planner</h1><p>Método Sell Your Knowledge · plan por cliente</p></div>
+  <div class="logo"><h1>🎙️ Crea tu Voz</h1><p>Crea tu Voz · plan de acción por cliente</p></div>
   <div id="clientList"></div>
   <div class="actions">
-    <button class="btn" onclick="showCasos()">📚 Casos reales (mentorías)</button>
     <button class="btn primary" onclick="openNewClient()">+ Nuevo cliente</button>
+    <button class="btn" onclick="openCloud()">☁ Nube y sesión</button>
     <button class="btn" onclick="exportData()">⬇ Exportar respaldo</button>
     <button class="btn" onclick="document.getElementById('importFile').click()">⬆ Importar respaldo</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
@@ -107,6 +114,7 @@ td input{width:70px;background:var(--bg);border:1px solid var(--border);color:va
     <h3 id="modalTitle">Nuevo cliente</h3>
     <label>Nombre del cliente / proyecto</label>
     <input id="fName" placeholder="Ej: Juan Pérez">
+    <div id="fError" class="ferr">El nombre es obligatorio</div>
     <label>Nicho</label>
     <select id="fNiche"></select>
     <label>¿Qué vende? (servicio/expertise)</label>
@@ -120,16 +128,60 @@ td input{width:70px;background:var(--bg);border:1px solid var(--border);color:va
   </div>
 </div>
 
+<div id="confirmModal" style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:60">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;width:380px;max-width:90vw">
+    <h3 id="confirmMsg" style="font-size:15px;line-height:1.5;margin-bottom:18px">¿Confirmar?</h3>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" onclick="closeConfirm(false)">Cancelar</button>
+      <button class="btn primary" onclick="closeConfirm(true)">Confirmar</button>
+    </div>
+  </div>
+</div>
+<div id="cloudModal" style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:60">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;width:460px;max-width:92vw;max-height:90vh;overflow-y:auto">
+    <h3 style="margin-bottom:6px">☁ Guardado en la nube</h3>
+    <p id="cloudStatus" style="font-size:12.5px;color:var(--muted)">Sin configurar — tus datos se guardan solo en este navegador.</p>
+    <label style="font-size:12px;color:var(--muted);display:block;margin:12px 0 5px">URL del proyecto Supabase</label>
+    <input id="cUrl" placeholder="https://xxxx.supabase.co" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px;font-size:13px">
+    <label style="font-size:12px;color:var(--muted);display:block;margin:12px 0 5px">Anon key (public)</label>
+    <input id="cKey" placeholder="eyJ..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px;font-size:13px">
+    <label style="font-size:12px;color:var(--muted);display:block;margin:12px 0 5px">Tu email</label>
+    <input id="cEmail" placeholder="tu@email.com" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px;font-size:13px">
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn" onclick="cloudSendCode()">1· Enviarme código</button>
+      <input id="cCode" placeholder="Código de 6 dígitos" style="flex:1;min-width:130px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px;font-size:13px">
+      <button class="btn primary" onclick="cloudVerify()">2· Entrar</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn small" onclick="cloudLogout()">Cerrar sesión</button>
+      <div style="flex:1"></div>
+      <button class="btn small" onclick="document.getElementById('cloudModal').style.display='none'">Cerrar</button>
+    </div>
+    <div class="cloudinfo"><b>Configuración inicial (una sola vez):</b><br>
+    1. Creá una cuenta gratis en supabase.com → New project.<br>
+    2. En SQL Editor pegá y ejecutá:<br>
+    <code>create table planner (user_id uuid primary key references auth.users(id), data jsonb, updated_at timestamptz default now());<br>
+    alter table planner enable row level security;<br>
+    create policy "own" on planner for all using (auth.uid() = user_id) with check (auth.uid() = user_id);</code><br>
+    3. En Authentication → Emails → plantilla "Magic Link": agregá <code>{{ .Token }}</code> al cuerpo del mail para recibir el código.<br>
+    4. En Project Settings → API: copiá la URL y la anon key y pegalas arriba.<br>
+    Con la sesión iniciada, todo se sincroniza solo y podés entrar desde cualquier dispositivo. Sin configurar, la app sigue funcionando 100% en local.</div>
+  </div>
+</div>
+
 <script>
 /* ================== DATOS: NICHOS ================== */
 const NICHES = {
- fitness:{label:"Coaching Fitness"},
- nutricion:{label:"Nutrición / Salud"},
- inmobiliario:{label:"Inmobiliario"},
- agencia:{label:"Agencia de Marketing"},
- negocios:{label:"Coaching de Negocios"},
- estetica:{label:"Estética / Belleza"},
- otro:{label:"Otro (usar plantillas)"}
+ fitness:{label:"Fitness y bienestar"},
+ nutricion:{label:"Nutrición y salud"},
+ inmobiliario:{label:"Bienes raíces"},
+ agencia:{label:"Marketing y agencias"},
+ negocios:{label:"Coaching de negocios"},
+ estetica:{label:"Estética y belleza"},
+ desarrollo:{label:"Desarrollo personal"},
+ finanzas:{label:"Finanzas y trading"},
+ educacion:{label:"Educación online"},
+ otro:{label:"Otro"}
 };
 
 /* Ejemplos por nicho, por paso (clave = id de paso) */
@@ -205,9 +257,9 @@ const EX = {
 /* ================== DATOS: FASES Y PASOS ================== */
 const PHASES=[
  {id:"f0",name:"0 · Fundaciones",emoji:"🏗️",intro:"Sin esto, el contenido es ruido. El 90% del éxito está en nicho + servicio + oferta. Tiempo estimado: 1-2 semanas. No avances a contenido sin cerrar esta fase.",steps:[
-  {id:"nicho",t:"Elegir y validar el nicho",d:"Checklist SYK — el nicho debe cumplir TODO lo condicional:\n✅ ¿Podés nombrar 10 personas/empresas concretas con este problema?\n✅ ¿Ya pagan por resolverlo? ¿Pueden pagar $1.000-$2.000?\n✅ ¿Hay 30.000+ personas en el nicho?\n✅ ¿Hay competencia exitosa? (competencia = mercado validado)\n✅ ¿Está en crecimiento?\n✅ ¿Te ves trabajando con ellos 1-2 años? ¿Hablás su lenguaje?\n✅ ¿Es fácil encontrarlos y contactarlos?\n\nReglas: UN solo nicho · más específico = mejor · decidilo en días, no semanas. Los nichos no se saturan; las ofertas y métodos sí."},
+  {id:"nicho",t:"Elegir y validar el nicho",d:"Checklist de validación — el nicho debe cumplir TODO lo condicional:\n✅ ¿Podés nombrar 10 personas/empresas concretas con este problema?\n✅ ¿Ya pagan por resolverlo? ¿Pueden pagar $1.000-$2.000?\n✅ ¿Hay 30.000+ personas en el nicho?\n✅ ¿Hay competencia exitosa? (competencia = mercado validado)\n✅ ¿Está en crecimiento?\n✅ ¿Te ves trabajando con ellos 1-2 años? ¿Hablás su lenguaje?\n✅ ¿Es fácil encontrarlos y contactarlos?\n\nReglas: UN solo nicho · más específico = mejor · decidilo en días, no semanas. Los nichos no se saturan; las ofertas y métodos sí."},
   {id:"mensaje",t:"Definir el mensaje central",d:"Una frase que gobierna toda la marca. Se usa en la bio, el pitch, los DMs y el contenido.",tpl:"Ayudo a [QUIÉN específico] a [RESULTADO concreto y medible] mediante [TU MECANISMO con nombre] sin [DOLOR u objeción principal].",ex:"mensaje"},
-  {id:"oferta",t:"Armar la oferta espejo",d:"Antes de publicar nada. Composición: Resultado + Tiempo + Método + Secretos (tu vehículo único) + Seguro (garantía) + Polarizar + Precio.\n\nSi estás empezando: Oferta Mínima Viable (precio bajo o comisión a 4-5 clientes para validar y generar casos). Si ya hay resultados: oferta irresistible high-ticket.\n\nRegla de precios SYK: NUNCA bajar precio; siempre subir valor. El precio comunica valor.",ex:"oferta"},
+  {id:"oferta",t:"Armar la oferta espejo",d:"Antes de publicar nada. Composición: Resultado + Tiempo + Método + Secretos (tu vehículo único) + Seguro (garantía) + Polarizar + Precio.\n\nSi estás empezando: Oferta Mínima Viable (precio bajo o comisión a 4-5 clientes para validar y generar casos). Si ya hay resultados: oferta irresistible high-ticket.\n\nRegla de precios: NUNCA bajar precio; siempre subir valor. El precio comunica valor.",ex:"oferta"},
   {id:"latentes",t:"Listar 5-10 condiciones latentes del mercado",d:"Las creencias, miedos y frustraciones que tu nicho comparte. Tu contenido y tus mensajes van a 'perforar' estas bolsas de presión psicológica. Si tu comunicación hace que se sientan entendidos, generás confianza.",ex:"latentes"},
   {id:"voz",t:"Definir la voz de la marca",d:"3-5 rasgos de tono que filtran TODO el contenido:\n• ¿Qué opiniones defendés aunque incomoden?\n• ¿Qué palabras usás al HABLAR (no al escribir)?\n• ¿Qué historias personales explican por qué hacés esto?\n• ¿Qué NO harías nunca aunque funcione?\n\nEj: directo, con humor seco, sin tecnicismos, cero humo. Genuino siempre: inventar o exagerar es lo que quema audiencias."},
   {id:"ico",t:"Calcular el ICO (complejidad operativa)",d:"Multiplicá: nichos (×3.5) · fuentes de tráfico (×1.5) · embudos (×1.0) · productos (×3.5) · equipo (×0.5).\n\nICO: <1 baja · 1-1.5 moderada · 1.5-2 alta · >2 extrema.\nIEN = ICO / (facturación mensual / 100.000). Debe dar <1.5.\n\nObjetivo del método: 1 nicho + 1 producto + mínimas fuentes. Menos es más — adición mediante sustracción."}
@@ -220,15 +272,15 @@ const PHASES=[
   {id:"feed",t:"Publicar los primeros 9-12 contenidos de nicho",d:"Nadie confía en un perfil vacío. Antes de escalar prospección o ads, el feed debe demostrar expertise. Usá los 3 tipos de contenido de la Fase 2."}
  ]},
  {id:"f2",name:"2 · Contenido",emoji:"🎬",intro:"El inbound tarda 3-6 meses en dar resultados — \"cuando llueve, diluvia\". Mientras tanto, el outbound (Fase 4) paga las cuentas. Constancia sin excepción.",steps:[
-  {id:"pilares",t:"Definir los 3 pilares de contenido",d:"Mezcla semanal SYK:\n• NICHO (el más importante): habla DIRECTO a tu comprador con temas específicos de su mundo.\n• VALOR/PERSPECTIVA: info aplicable ya — regulá cuánto regalás (tu mercado no es el de Hormozi).\n• AUTORIDAD: resultados tuyos y de tus clientes con números.\n+ Lifestyle/motivacional solo si vendés B2C.",ex:"hooks"},
+  {id:"pilares",t:"Definir los 3 pilares de contenido",d:"Mezcla semanal:\n• NICHO (el más importante): habla DIRECTO a tu comprador con temas específicos de su mundo.\n• VALOR/PERSPECTIVA: info aplicable ya — regulá cuánto regalás.\n• AUTORIDAD: resultados tuyos y de tus clientes con números.\n+ Lifestyle/motivacional solo si vendés B2C.",ex:"hooks"},
   {id:"cadencia",t:"Fijar la cadencia semanal",d:"Mínimo viable:\n• 3-4 reels cortos (estructura: Hook 3 seg → Desarrollo → CTA)\n• 1 contenido largo (YouTube o carrusel profundo) para nutrir\n• Stories DIARIAS\n\nEl contenido corto trae alcance; el largo construye confianza. Ninguna marca grande se construyó solo con contenido corto."},
-  {id:"guion",t:"Guionar los primeros 8 reels",d:"Estructura de guion por reel:\n1. HOOK (3 seg): frase o imagen que frena el scroll\n2. PROBLEMA: nombralo como lo diría tu cliente\n3. DESARROLLO: 2-3 puntos concretos\n4. EVIDENCIA: caso, número o demostración\n5. CTA: «comentá [PALABRA] y te mando la guía» / «seguime para más»\n\nTip: usá la IA de Guionado de Rama (o skill guiones-by-rama) para iterar."},
-  {id:"stories",t:"Sistema de stories diarias",d:"El arma de venta más subestimada (responsable de gran parte de la facturación de SYK). Mezcla:\n• Vida/proceso (backstage, rutina) — conexión\n• Prueba social (testimonios, resultados, chats)\n• Interacción (encuestas, cajas de preguntas) — activa el algoritmo y detecta interesados\n• Venta directa 1-2 veces/semana con hand raisers: «respondé HOY y te mando el recurso»"},
+  {id:"guion",t:"Guionar los primeros 8 reels",d:"Estructura de guion por reel:\n1. HOOK (3 seg): frase o imagen que frena el scroll\n2. PROBLEMA: nombralo como lo diría tu cliente\n3. DESARROLLO: 2-3 puntos concretos\n4. EVIDENCIA: caso, número o demostración\n5. CTA: «comentá [PALABRA] y te mando la guía» / «seguime para más»\n\nTip: usá una IA como ChatGPT para iterar variantes del guion."},
+  {id:"stories",t:"Sistema de stories diarias",d:"El arma de venta más subestimada. Mezcla:\n• Vida/proceso (backstage, rutina) — conexión\n• Prueba social (testimonios, resultados, chats)\n• Interacción (encuestas, cajas de preguntas) — activa el algoritmo y detecta interesados\n• Venta directa 1-2 veces/semana con hand raisers: «respondé HOY y te mando el recurso»"},
   {id:"largo",t:"Contenido largo quincenal/semanal",d:"YouTube, carruseles profundos o newsletter. Objetivo: nutrir y convertir a los que ya te conocen. Temas: tu método explicado, casos de éxito desglosados, opiniones polarizantes del nicho."}
  ]},
  {id:"f3",name:"3 · Automatización",emoji:"🤖",intro:"Capturá cada gota de atención que genera el contenido. Configurar una vez, revisar semanal.",steps:[
   {id:"manychat",t:"Configurar Manychat con palabra clave",d:"En cada reel con recurso: «comentá [PALABRA] y te lo mando por DM». Manychat responde automático con el lead magnet y dispara la conversación. Cada DM entra al flow Hand Raiser (Fase 5).\n\nConfiguración: cuenta Manychat → conectar IG → automatización por keyword → mensaje con el recurso + pregunta abierta («¿qué problema estás intentando resolver?»)."},
-  {id:"ads",t:"(Cuando factures $10-30K/mes) Follow Me Ads",d:"Recién con $10-30K/mes y $150+/mes de presupuesto: campañas de reconocimiento e interacción para potenciar el orgánico. Meta es la plataforma principal del método. Antes de eso: NO pagar ads — el alcance está garantizado pero la conversión no, y necesitás espalda para testear."}
+  {id:"ads",t:"(Cuando factures $10-30K/mes) Follow Me Ads",d:"Recién con $10-30K/mes y $150+/mes de presupuesto: campañas de reconocimiento e interacción para potenciar el orgánico. Meta es la plataforma principal recomendada. Antes de eso: NO pagar ads — el alcance está garantizado pero la conversión no, y necesitás espalda para testear."}
  ]},
  {id:"f4",name:"4 · Outbound",emoji:"🎯",intro:"Desde el DÍA 1, en paralelo al contenido. Mientras la marca crece, el dinero sale de acá. Regla de oro: consistencia — 30-40 contactos/día en IG, sin excepción. Resultados en 2-4 semanas (outbound lag).",steps:[
   {id:"leads",t:"Armar la fuente de leads",d:"Instagram: búsqueda del nicho, seguidores de referentes/influencers del nicho, hashtags, Google: instagram.com -inurl:/p [nicho] [país].\nFacebook: miembros nuevos de los 5-10 grupos top del nicho.\nGoogle Maps: negocios locales (clínicas, centros, inmobiliarias).\nOrganizá todo en una planilla (nombre + link + estado A/B/C/D).\n\nLímites diarios IG: 50 follows, 30 DMs fríos, 50 likes, 20 comentarios. Actuá como humano."},
@@ -244,7 +296,7 @@ const PHASES=[
   {id:"b2bb2c",t:"Adaptar el proceso a B2B o B2C",d:"B2C: venta emocional, corta — 1 llamada estratégica (o cierre por chat). Clave: pre-call fuerte (triage o live transfer).\nB2B: venta lógica — demo call (cualificación) + llamada estratégica. Si el lead viene nutrido, puede resolverse en una."}
  ]},
  {id:"f6",name:"6 · Métricas",emoji:"📊",intro:"Lo que no se mide, no se mejora. Trackear TODOS los días. Estrella Polar: llamadas agendadas por semana. Cargá tus números en la pestaña Tracker.",steps:[
-  {id:"tracker",t:"Completar el tracker semanal (pestaña 📊 Tracker)",d:"Registrá cada semana: contactos iniciados (A), interesados (B), Calendly enviados (C), agendas (D), shows, cierres y facturación. La app calcula las tasas sola.\n\nBenchmarks SYK: TAP ≥2,5% · Show-up ≥50% · Cierre ≥15-20%."},
+  {id:"tracker",t:"Completar el tracker semanal (pestaña 📊 Tracker)",d:"Registrá cada semana: contactos iniciados (A), interesados (B), Calendly enviados (C), agendas (D), shows, cierres y facturación. La app calcula las tasas sola.\n\nBenchmarks: TAP ≥2,5% · Show-up ≥50% · Cierre ≥15-20%."},
   {id:"estrella",t:"Revisar la Estrella Polar cada semana",d:"Si las agendas semanales están en KPI → no cambies nada, subí volumen.\nSi fallan → identificá QUÉ tubo de la tubería falla (¿no responden? ¿no agendan? ¿no asisten? ¿no cierran?) y arreglá SOLO ese tubo cambiando una variable por vez."},
   {id:"revision",t:"Revisión mensual del negocio",d:"• Tasa de éxito de clientes (≥50% DFY / 30% DWY)\n• Tasa de reembolsos <5% · pesadilla <10% · churn <15%\n• ¿Casos de éxito nuevos? → convertirlos en contenido de autoridad y subir precio\n• Con 25-30 llamadas/mes consistentes → delegar prospección a un setter\n• ¿ICO sigue bajo? No agregar nichos/productos: profundizar."}
  ]}
@@ -254,23 +306,42 @@ const PHASES=[
 let DB={clients:[],activeId:null};
 const LS="syk_planner_v1";
 function load(){try{const d=localStorage.getItem(LS);if(d)DB=JSON.parse(d)}catch(e){}}
-function save(){localStorage.setItem(LS,JSON.stringify(DB))}
+function save(){localStorage.setItem(LS,JSON.stringify(DB));cloudPushSoon()}
 function client(){return DB.clients.find(c=>c.id===DB.activeId)}
 function uid(){return Math.random().toString(36).slice(2,9)}
 
 /* ================== CLIENTES ================== */
+let editingId=null;
+function fillNicheSel(val){const sel=document.getElementById('fNiche');sel.innerHTML=Object.entries(NICHES).map(([k,v])=>`<option value="${k}" ${k===val?'selected':''}>${v.label}</option>`).join('')}
 function openNewClient(){
+ editingId=null;document.getElementById('modalTitle').textContent='Nuevo cliente';
  document.getElementById('fName').value='';document.getElementById('fService').value='';document.getElementById('fRevenue').value='';
- const sel=document.getElementById('fNiche');sel.innerHTML=Object.entries(NICHES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+ document.getElementById('fError').style.display='none';fillNicheSel();
+ document.getElementById('modal').classList.add('show');
+}
+function openEditClient(){
+ const c=client();if(!c)return;
+ editingId=c.id;document.getElementById('modalTitle').textContent='Editar cliente';
+ document.getElementById('fName').value=c.name;document.getElementById('fService').value=c.service||'';document.getElementById('fRevenue').value=c.revenue||'';
+ document.getElementById('fError').style.display='none';fillNicheSel(c.niche);
  document.getElementById('modal').classList.add('show');
 }
 function closeModal(){document.getElementById('modal').classList.remove('show')}
 function saveClient(){
- const name=document.getElementById('fName').value.trim();if(!name)return alert('Poné un nombre');
- const c={id:uid(),name,niche:document.getElementById('fNiche').value,service:document.getElementById('fService').value,revenue:document.getElementById('fRevenue').value||0,done:{},notes:{},metrics:[],phase:"f0",created:Date.now()};
- DB.clients.push(c);DB.activeId=c.id;save();closeModal();renderAll();
+ const name=document.getElementById('fName').value.trim();
+ const err=document.getElementById('fError');
+ if(!name){err.style.display='block';document.getElementById('fName').focus();return}
+ err.style.display='none';
+ const vals={name,niche:document.getElementById('fNiche').value,service:document.getElementById('fService').value,revenue:document.getElementById('fRevenue').value||0};
+ if(editingId){const c=DB.clients.find(x=>x.id===editingId);if(c)Object.assign(c,vals);toast('Cambios guardados ✓')}
+ else{DB.clients.push(Object.assign({id:uid(),done:{},notes:{},metrics:[],phase:"f0",created:Date.now()},vals));DB.activeId=DB.clients[DB.clients.length-1].id;toast('Cliente guardado ✓')}
+ save();closeModal();renderAll();
 }
-function delClient(id){if(!confirm('¿Eliminar este cliente y todo su progreso?'))return;DB.clients=DB.clients.filter(c=>c.id!==id);if(DB.activeId===id)DB.activeId=DB.clients[0]?.id||null;save();renderAll()}
+function toast(msg){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2200)}
+let _confirmCb=null;
+function askConfirm(msg,cb){_confirmCb=cb;document.getElementById('confirmMsg').textContent=msg;document.getElementById('confirmModal').style.display='flex'}
+function closeConfirm(ok){document.getElementById('confirmModal').style.display='none';const cb=_confirmCb;_confirmCb=null;if(ok&&cb)cb()}
+function delClient(id){askConfirm('¿Eliminar este cliente y todo su progreso? Esta acción no se puede deshacer.',()=>{DB.clients=DB.clients.filter(c=>c.id!==id);if(DB.activeId===id)DB.activeId=DB.clients[0]?.id||null;save();renderAll();toast('Cliente eliminado')})}
 function progress(c){const total=PHASES.reduce((a,p)=>a+p.steps.length,0);const done=Object.values(c.done).filter(Boolean).length;return Math.round(done/total*100)}
 
 /* ================== RENDER ================== */
@@ -283,10 +354,10 @@ function renderSidebar(){
 }
 function renderTop(){
  const c=client();const el=document.getElementById('topbar');
- if(!c){el.innerHTML='<h2>SYK Action Planner</h2>';return}
+ if(!c){el.innerHTML='<h2>Crea tu Voz</h2>';return}
  el.innerHTML=`<h2>${esc(c.name)}</h2><span class="tag">${NICHES[c.niche]?.label}</span>
  <span class="meta">${esc(c.service||'')}</span><div class="spacer"></div>
- <button class="btn small" onclick="exportClient()">⬇ Exportar cliente</button>
+ <button class="btn small" onclick="openEditClient()">✎ Editar</button>\n <button class="btn small" onclick="exportClient()">⬇ Exportar cliente</button>
  <button class="btn small danger" onclick="delClient('${c.id}')">Eliminar</button>`;
 }
 function renderTabs(){
@@ -343,13 +414,13 @@ function renderTracker(el,c){
   <td><button class="btn small danger" onclick="client().metrics.splice(${i},1);save();renderContent()">✕</button></td></tr>`).join('')}
  </tbody></table>
  <div style="margin-top:14px"><button class="btn primary" onclick="client().metrics.push(newWeek(client()));save();renderContent()">+ Agregar semana</button></div>
- <p style="margin-top:16px;font-size:12.5px;color:var(--muted);line-height:1.7">Regla SYK: si la Estrella Polar (agendas) está en KPI → no cambies nada, subí volumen. Si falla, identificá el tubo exacto (¿no responden? ¿no agendan? ¿no asisten? ¿no cierran?) y cambiá UNA variable por vez.</p>`;
+ <p style="margin-top:16px;font-size:12.5px;color:var(--muted);line-height:1.7">Regla: si la Estrella Polar (agendas) está en KPI → no cambies nada, subí volumen. Si falla, identificá el tubo exacto (¿no responden? ¿no agendan? ¿no asisten? ¿no cierran?) y cambiá UNA variable por vez.</p>`;
 }
 function newWeek(c){const n=(c.metrics?.length||0)+1;return{week:'S'+n,a:0,b:0,cal:0,d:0,show:0,close:0,cash:0}}
 
 /* ================== EXPORT / IMPORT ================== */
-function exportData(){dl(JSON.stringify(DB,null,1),'syk_planner_respaldo.json')}
-function exportClient(){const c=client();if(!c)return;dl(JSON.stringify({clients:[c],activeId:c.id},null,1),'syk_plan_'+c.name.replace(/\s+/g,'_')+'.json')}
+function exportData(){dl(JSON.stringify(DB,null,1),'crea_tu_voz_respaldo.json')}
+function exportClient(){const c=client();if(!c)return;dl(JSON.stringify({clients:[c],activeId:c.id},null,1),'plan_'+c.name.replace(/\s+/g,'_')+'.json')}
 function importData(ev){
  const f=ev.target.files[0];if(!f)return;const r=new FileReader();
  r.onload=()=>{try{const d=JSON.parse(r.result);
@@ -366,34 +437,70 @@ function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function esc2(s){return String(s??'').replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 
-/* ============ CASOS REALES DE MENTORÍAS ============ */
-const CASOS=[
-{c:"Ofertas y promesas (casos reales)",t:"Nicho intangible (desarrollo humano, B2C) — cómo tangibilizar sin medir",b:["Hay nichos donde la oferta medible es IMPOSIBLE y está bien: fórmula = dolor elegido → punto B → PARA QUÉ quiere llegar ahí.","Ej.: «te acompaño a eliminar tus creencias limitantes y desbloquear tu potencial para llevar tu negocio al siguiente nivel».","B2C compra por identificación emocional (testimonios de gente igual a él); B2B exige números.","Lo único que le saca poder a una oferta es que no se entienda qué se va a conseguir."]},
-{c:"Ofertas y promesas (casos reales)",t:"Estratega de contenido sin casos propios — recortar la tubería",b:["En OMV nunca prometas facturación: entre tu trabajo y la plata hay etapas que no controlás.","«Recortá la tubería: hacete muy buena en UNA parte» → promesa de llamadas agendadas.","Prometer $3K/mes extra es tierra de nadie: los que facturan eso no se motivan, los que no, no pueden pagar.","Prometé plata recién cuando tengas números propios: 70 agendas → 50 shows → 20% cierre → AOV $1.500 = $15K."]},
-{c:"Ofertas y promesas (casos reales)",t:"Setter manager ($3M generados) — cuándo SÍ prometer facturación",b:["Solo si controlás o auditás TODA la tubería: si optimizás agendas y el cuello está en el cierre, no se convierte en plata.","Caso real SYK: sobraban leads pero los closers no tenían capacidad — más agendas hubieran roto el sistema.","Alternativa potente: «auditamos tu sistema comercial, encontramos TU cuello de botella y lo resolvemos para que factures $10K extra en 90 días».","Cobro en OMV: fee inicial bajo + 20-25% o por agenda según la promesa."]},
-{c:"Ofertas y promesas (casos reales)",t:"Agencia de VSL funnels — cobro por llamada calificada (oferta espejo pura)",b:["Cobrar POR LLAMADA CALIFICADA descontando el costo publicitario: cobro $100/llamada − $40 de costo de ads = $60 míos.","Incentivo alineado: mientras mejor soy, más gano yo y menos paga el cliente. Cobrar cada 15-20 agendas.","Fee inicial máximo ~$200 justificado en costos. Estandarizar la inversión del cliente (ej. $500/mes en ads).","Velocidad: nicho+oferta se definen EN una llamada (grabar → ChatGPT → resumen); guión de VSL al día siguiente. «30 días para eso es un montón»."]},
-{c:"Ofertas y promesas (casos reales)",t:"PNL para vendedores — redefinir el avatar en vez de competir",b:["No compitas donde no tenés autoridad (academias de closing con cifras millonarias): ampliá el avatar de «closers» a «coaches y vendedores».","Tu vehículo único (PNL, lenguaje hipnótico) es el diferencial que te posiciona.","El dolor real no era «depender de guiones»: era la tasa de cierre baja. La promesa se construye sobre el dolor REAL.","Promesa final: corta — resultado concreto + vehículo único + a quién + horizonte temporal (<120 días)."]},
-{c:"Ofertas y promesas (casos reales)",t:"Agencia de IA sin nicho, desbordada — el caso ICO de libro",b:["7 proyectos todos distintos = colapso. «Tenés que anicharte. No veo otra solución.»","Techo de un freelancer con servicio personalizado: 4 clientes; productizado en un nicho: 6-7.","Plan de choque en 1 semana: definir nicho → rehacer landing/VSL → cambiar links de videos → contenido de nicho. Aceptar que agendas y views caen ~80%.","Elegir nicho: matriz de promedio ponderado. Factor #1: ¿te ves trabajando con esa gente 5-10 años?"]},
-{c:"Ofertas y promesas (casos reales)",t:"Trading — comunidad, VSOP y operaciones simples",b:["Comunidades gratuitas: «la gente que busca comunidad gratis no es una ballena» — en SYK nunca convirtieron; solo bolsa de trabajo.","Lo que sí mueve en trading: live trading semanal (mejor YouTube en vivo, queda subido).","Validar VSOP con oferta ÚNICA ~$1.000 (no cebolla). Cebolla recién después de validar.","«Es un curso con calls, no es Amazon»: no frenes la venta por miedos operativos. ¿50 clientes? «Podés meter 150; si aparece el problema, lo resolvemos.»"]},
-{c:"Contenido y marca (frameworks de Rama)",t:"Estructura universal de guion y mix de contenido",b:["Guiones (y carruseles): Atención → Problema → Solución → Prueba social → CTA. Siempre.","Mix: 30% contenido personal/mentalidad, 70% contenido de nicho. O bien: Problemas técnicos 50% · Resultados 30% · Mentalidad 20%.","Mínimo 1 reel con CTA por día: cuenta de 2.300 seguidores = 3-4 comentarios/video = 21+ conversaciones/semana.","El CTA en video no molesta: ya diste valor gratis. Nicho de tema único (ej. sueño): tema core + temas colindantes (rutina, ejercicio, nutrición)."]},
-{c:"Contenido y marca (frameworks de Rama)",t:"Hooks que no se scrollean (masterclass en vivo)",b:["Hook genérico = scroll garantizado: «no vivís de tu marca personal porque no sabés cómo» servía en 2013, hoy no. Test: ¿VOS lo scrollearías?","Hook visual: pila de libros en la mano + «tenés todo este conocimiento pero le tenés terror a ESTO» (mostrás una cámara).","Lenguaje que duela: «hay pibes de 20 que suben videítos y hacen $100K/mes, y vos estudiaste 10 años y no hacés ni $5K».","Autoridad prestada: «le pagué $50.000 a este tipo para explicarte esto en 23 segundos».","Errores que matan videos: música que tapa el hook, subtítulos sobre la cara, edición IA recargada, presentador inexpresivo. Cámara limpia > sobreproducción."]},
-{c:"Contenido y marca (frameworks de Rama)",t:"Carruseles: los 2 tipos",b:["Tipo 1 — Ángulo de dolor: estructura clásica; LA CLAVE ES EL ÁNGULO. «No te contratan como DJ porque no sos convocante» explotó; el mismo creador hablando de bookers, nada.","Hook al ego: «Los DJs que más fechas tienen no son los que mejor pinchan».","Tipo 2 — Entregable directo (hand raiser): «se descubrió esta IA → cómo funciona → resultado → comentá X y te la mando». Más viral, ideal faceless para tráfico frío, pero leads más fríos.","El de dolor trae leads de más calidad; el de entregable más alcance."]},
-{c:"Contenido y marca (frameworks de Rama)",t:"La Campana de Gauss de la comunicación",b:["Nivel 1 = quebrados · Nivel 2 = tu cliente real · Nivel 3 = avanzados.","Comunicale al nivel 3 → te llega 80% de nivel 2 + 20% de nivel 3 (efecto aspiracional).","El error de todos: hablarle a su cliente promedio → les llega el nivel 1.","Tampoco irse demasiado arriba (llega gente calificada pero nadie responde): es «correrse un poquito a la derecha».","Complemento: videos anti-objeción («¿pagaste otra mentoría y no funcionó? problema tuyo por no investigar») — ablandan objeciones y suben la calificación."]},
-{c:"Stories y DMs (sistema de Rama)",t:"Algoritmo de historias + secuencia CTA completa",b:["1) Borrar temprano las historias del día anterior. 2) Subir UNA historia gancho que explote en vistas. 3) Esperar ~1 hora. 4) Subir la secuencia CTA.","Secuencia: mostrar trabajo con clientes → «¿qué hago con ellos?» (entregables en un beneficio: «te resuelvo todo el contenido, así no pensás y convertís») → FOMO opcional → cierre.","Cierre: «si querés que te resuelva [X] para lograr [SUEÑO] sin [OBJECIONES], mandame DOC y te paso el doc» — suena a documento, NO a venta.","CTA = hand raiser con los entregables de tu programa. Las WINS siempre van DENTRO de una secuencia CTA.","Cadencia: 2 CTA de recurso + 2 hand raisers por semana. En historias se ofrece un recurso, nunca una llamada."]},
-{c:"Stories y DMs (sistema de Rama)",t:"Lead magnets: la casa sin la llave",b:["Estructuralos para que falte el último 10%: «te construyo la casa entera, pero la llave la tengo yo».","En nichos de acompañamiento ni importa: «el gordo que no entrena no entrena ni con el curso gratis — no pagan por información, pagan por acompañamiento».","El mejor recurso = el que más (y mejores) leads te responden. Se descubre probando ángulos de dolor.","¿Saturación? No existe. Si hay fricción o tu cuenta es chica: dalo de entrada, recarga confianza.","Los Looms casi nadie los mira: «no les interesa VER el recurso, les interesa TENERLO». Reciclá los mismos por meses."]},
-{c:"Stories y DMs (sistema de Rama)",t:"Abridores, leads calificados y tire kickers",b:["Mejor abridor: «¿cómo vas? ¿estás entrenando o por ahora nada?» (doble opción, siempre eligen una) o «¿qué probaste que no te funcionó?».","Lead calificado = alguien que PODÉS ayudar. Que no tenga plata hoy NO lo descalifica: «el que verdaderamente quiere, la consigue». La llamada se toma igual.","Nunca asumir «recién empieza = no tiene plata»: preguntá a dónde quiere llegar y vendé lo más caro.","Tire kickers (piden recursos y nunca agendan): cortar con honestidad + redirigir al dolor y a la agenda. «Si te lo tomás personal, perdiste.»"]},
-{c:"Escalado y transiciones",t:"Rebranding / cambio de programa sin morir en el intento",b:["Si el mercado pide otra cosa (70% decía «no quiero ser viral, quiero clientes»): cambiá el mensaje YA — la cuenta no sufre, el alcance se mantiene.","NUNCA dejar de vender en la transición (money in): vendé el programa nuevo aunque no esté grabado; lo que falta se compensa con TU atención.","Convertí el cambio en marketing: mini-lanzamiento dramático («CDN muere para siempre») — a la gente le encanta el chisme. Carrusel post-mortem: 5.000 likes, stories vistas por 60.000.","Masterclass/webinar de lanzamiento: cierre agendando consultoría gratuita, nunca link de pago directo en high-ticket.","Revenue Generating Activities (subir historias + grabar videos) NUNCA se frenan."]},
-{c:"Escalado y transiciones",t:"Low ticket + high ticket / un solo negocio",b:["El low ticket ($30-40) se vende SOLO con ads (landing + VSL); jamás promocionarlo en la marca personal («te llega gente sin un mango»).","Contenido del low ticket: perspectivas + 10% del valor — que quede excusa para pagar más. Usalo como downsell en chat.","Dos negocios a la vez: no. «Con cualquiera hacés plata, pero es difícil escalar UNO — no me imagino dos.»","Camino correcto: escalar la agencia → graduación → vender el DWY al MISMO nicho (Juan Pereira: agencia para realtors → consultoría para realtors).","Nichos tipo clínicas estéticas/cirugía: se venden con ADS, el orgánico es secundario (1-2 videos/semana de validación)."]},
-{c:"Escalado y transiciones",t:"Operativa con clientes (agencia de contenido/funnels)",b:["Contrato ultra corto mostrado y firmado EN la misma llamada = señal de compromiso.","Con 1-2 casos de éxito ya cobrás retainer/adelantado.","Lo más importante del VSL funnel: trackear TODO el embudo — el creativo más barato por CPM no siempre es el más rentable.","Tracker manual 1×/día + columna de notas: UN cambio a la vez y verificar a la semana.","Truco Meta: eventos de conversión personalizados a la API (optimizar solo por leads que dicen tener +$10K para invertir) → baja costos.","CRM = solo ventas (si lo complejizás, los setters lo llenan mal); ficha de cliente en Notion; Trello para editores."]}
-];
-function showCasos(){
- document.getElementById('phaseTabs').innerHTML='';
- document.getElementById('topbar').innerHTML='<h2>📚 Casos reales de las mentorías SYK</h2><div class="spacer"></div><button class="btn small" onclick="renderAll()">← Volver al plan</button>';
- var cats=[...new Set(CASOS.map(x=>x.c))];
- document.getElementById('content').innerHTML='<div class="phase-intro">Extraído de las consultorías en vivo de Ramiro, Juani y Matías: diagnósticos reales, frameworks y frases textuales aplicados a nichos concretos. Usalo como biblioteca de referencia mientras trabajás el plan de cada cliente.</div>'+cats.map(cat=>'<h3 style="margin:20px 0 10px;color:var(--accent);font-size:15px">'+cat+'</h3>'+CASOS.filter(x=>x.c===cat).map(x=>'<div class="step open"><div class="step-head" style="cursor:default"><div class="step-title">'+x.t+'</div></div><div class="step-body"><ul style="padding:12px 0 4px 18px;line-height:1.75;font-size:13.5px;color:#c7ccda">'+x.b.map(i=>'<li style="margin-bottom:6px">'+i+'</li>').join('')+'</ul></div></div>').join('')).join('');
+/* ============ NUBE (Supabase, opcional) ============ */
+const CLOUD_LS='ctv_cloud';
+let sb=null, cloudUser=null, _pushT=null;
+function cloudCfg(){try{return JSON.parse(localStorage.getItem(CLOUD_LS)||'null')}catch(e){return null}}
+function cloudInit(){
+ const cfg=cloudCfg();
+ if(!cfg||!window.supabase)return;
+ try{sb=window.supabase.createClient(cfg.url,cfg.key)}catch(e){return}
+ sb.auth.getSession().then(({data})=>{if(data&&data.session){cloudUser=data.session.user;cloudStatus();cloudPull()}});
 }
-
-load();renderAll();
+function cloudStatus(){
+ const el=document.getElementById('cloudStatus');if(!el)return;
+ el.textContent=cloudUser?('Conectado como '+cloudUser.email+' — sincronizando automáticamente.'):(cloudCfg()?'Configurado. Iniciá sesión con tu email.':'Sin configurar — tus datos se guardan solo en este navegador.');
+}
+function openCloud(){
+ const cfg=cloudCfg()||{};
+ document.getElementById('cUrl').value=cfg.url||'';
+ document.getElementById('cKey').value=cfg.key||'';
+ cloudStatus();
+ document.getElementById('cloudModal').style.display='flex';
+}
+function cloudSaveCfg(){
+ const url=document.getElementById('cUrl').value.trim(), key=document.getElementById('cKey').value.trim();
+ if(!url||!key){toast('Completá URL y anon key');return false}
+ localStorage.setItem(CLOUD_LS,JSON.stringify({url,key}));
+ if(window.supabase)sb=window.supabase.createClient(url,key);
+ return true;
+}
+async function cloudSendCode(){
+ if(!cloudSaveCfg())return;
+ if(!sb){toast('Sin internet o CDN bloqueado');return}
+ const email=document.getElementById('cEmail').value.trim();
+ if(!email){toast('Poné tu email');return}
+ const {error}=await sb.auth.signInWithOtp({email});
+ toast(error?('Error: '+error.message):'Código enviado — revisá tu email');
+}
+async function cloudVerify(){
+ if(!sb)return;
+ const email=document.getElementById('cEmail').value.trim(), token=document.getElementById('cCode').value.trim();
+ if(!email||!token){toast('Completá email y código');return}
+ const {data,error}=await sb.auth.verifyOtp({email,token,type:'email'});
+ if(error){toast('Error: '+error.message);return}
+ cloudUser=data.user;cloudStatus();toast('Sesión iniciada ✓');cloudPull();
+}
+async function cloudLogout(){if(sb)await sb.auth.signOut();cloudUser=null;cloudStatus();toast('Sesión cerrada')}
+async function cloudPull(){
+ if(!sb||!cloudUser)return;
+ const {data,error}=await sb.from('planner').select('data').eq('user_id',cloudUser.id).maybeSingle();
+ if(error||!data||!data.data)return cloudPushSoon();
+ const cloud=data.data;
+ if(!DB.clients.length){DB=cloud;localStorage.setItem(LS,JSON.stringify(DB));renderAll();toast('Datos cargados de la nube ✓')}
+ else if(JSON.stringify(cloud)!==JSON.stringify(DB)){
+  askConfirm('Hay datos en la nube distintos a los de este dispositivo. ¿Usar los de la NUBE? (Cancelar = conservar los locales y subirlos)',()=>{DB=cloud;localStorage.setItem(LS,JSON.stringify(DB));renderAll();toast('Datos de la nube cargados ✓')});
+ }
+}
+function cloudPushSoon(){
+ if(!sb||!cloudUser)return;
+ clearTimeout(_pushT);
+ _pushT=setTimeout(async()=>{
+  const {error}=await sb.from('planner').upsert({user_id:cloudUser.id,data:DB,updated_at:new Date().toISOString()});
+  if(!error){const el=document.getElementById('cloudStatus');if(el)el.textContent='Conectado como '+cloudUser.email+' — guardado en la nube ✓'}
+ },1500);
+}
+load();cloudInit();renderAll();
 </script>
 </body>
 </html>
